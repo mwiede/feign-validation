@@ -8,27 +8,36 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.validation.Constraint;
+import javax.validation.ConstraintViolationException;
 import javax.validation.Valid;
 import javax.validation.Validator;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import feign.Feign;
 import feign.InvocationHandlerFactory;
+import feign.Target;
 
+/**
+ * @author Matthias Wiedemann (mwiede at gmx.de)
+ */
 @RunWith(MockitoJUnitRunner.class)
 public class ValidationInvocationHandlerFactoryDecoratorTest {
 
     @Mock
     InvocationHandlerFactory invocationHandlerFactory;
 
-    @Mock
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     Validator validator;
 
     private Map<Method, InvocationHandlerFactory.MethodHandler> methodToHandler =
@@ -44,6 +53,9 @@ public class ValidationInvocationHandlerFactoryDecoratorTest {
     @Mock
     SomeInterface someInterface;
 
+    @Mock
+    Target<SomeInterface> target;
+
     @Before
     public void setup() {
 
@@ -55,34 +67,34 @@ public class ValidationInvocationHandlerFactoryDecoratorTest {
             }
         }
 
+        when(target.type()).thenReturn(SomeInterface.class);
+
         // Fake the Feign handling:
-        when(invocationHandlerFactory.create(any(), any())).thenReturn(new InvocationHandler() {
-            @Override
-            public Object invoke(Object o, Method method, Object[] objects) throws Throwable {
-                return methodToHandler.get(method).invoke(objects);
-            }
-        });
+        when(invocationHandlerFactory.create(any(), any()))
+                .thenReturn((o, method, objects) -> methodToHandler.get(method).invoke(objects));
     }
 
-    @Test
+    @Test(expected = ConstraintViolationException.class)
     public void decorateAndInvoke() throws Throwable {
-        ValidationInvocationHandlerFactoryDecorator validationInvocationHandlerFactoryDecorator =
+        final ValidationInvocationHandlerFactoryDecorator validationInvocationHandlerFactoryDecorator =
                 new ValidationInvocationHandlerFactoryDecorator(invocationHandlerFactory, validator);
-        InvocationHandler invocationHandler = validationInvocationHandlerFactoryDecorator.create(null, methodToHandler);
-        Method method = SomeInterface.class.getDeclaredMethod("someMethodWithAnnotation");
-        Object[] parameters = {null};
+        final InvocationHandler invocationHandler =
+                validationInvocationHandlerFactoryDecorator.create(target, methodToHandler);
+        final Method method = SomeInterface.class.getDeclaredMethod("someMethodWithAnnotation");
+        final Object[] parameters = {null};
         invocationHandler.invoke(someInterface, method, parameters);
-        verify(validator).validate(any(), any());
     }
 
     @Test
-    public void decorateAndInvokeWithout() throws Throwable {
-        ValidationInvocationHandlerFactoryDecorator validationInvocationHandlerFactoryDecorator =
+    public void decorateAndInvokeWithoutViolation() throws Throwable {
+        when(validator.forExecutables().validateReturnValue(any(), any(), any())).thenReturn(Collections.EMPTY_SET);
+        final ValidationInvocationHandlerFactoryDecorator validationInvocationHandlerFactoryDecorator =
                 new ValidationInvocationHandlerFactoryDecorator(invocationHandlerFactory, validator);
-        InvocationHandler invocationHandler = validationInvocationHandlerFactoryDecorator.create(null, methodToHandler);
-        Method method = SomeInterface.class.getDeclaredMethod("someMethodWithoutAnnotation");
-        Object[] parameters = {null};
+        final InvocationHandler invocationHandler =
+                validationInvocationHandlerFactoryDecorator.create(target, methodToHandler);
+        final Method method = SomeInterface.class.getDeclaredMethod("someMethodWithoutAnnotation");
+        final Object[] parameters = {null};
         invocationHandler.invoke(someInterface, method, parameters);
-        verify(validator, never()).validate(any(), any());
+        verify(validator.forExecutables()).validateReturnValue(any(), any(), any());
     }
 }
