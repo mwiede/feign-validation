@@ -1,4 +1,4 @@
-# feign-validation
+# feign-validation [![travis status](https://travis-ci.org/mwiede/feign-validation.svg?branch=master)](https://travis-ci.org/mwiede/feign-validation)
 A library for Feign containing a decorator which makes it possible to validate reponses using bean validation api 1.1 (JSR 349).
 
 While Jersey as the JAX-RS implementation provides [Bean Validation Support](https://jersey.github.io/documentation/latest/bean-validation.html), [Feign](https://github.com/OpenFeign/feign) acts as a client and til now only supports a limited set of annotations
