@@ -16,37 +16,37 @@ Here is how you can activate bean validation within Feign wrapper client:
 ```java
 
 interface GitHub {
-  @RequestLine("GET /repos/{owner}/{repo}/contributors")
-  @Valid
-  List<Contributor> contributors(@Param("owner") String owner, @Param("repo") String repo);
+    @RequestLine("GET /repos/{owner}/{repo}/contributors")
+    @Size(min = 1)
+    @Valid
+    List<Contributor> contributors(@Param("owner") String owner, @Param("repo") String repo);
+
 }
 
 static class Contributor {
-  @NotNull
-  @Size(min=10)
-  String login;
-  int contributions;
+    @NotNull
+    @Size(min = 10)
+    String login;
+    int contributions;
 }
 
 public static void main(String... args) {
 
-        Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+    Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
-        GitHub github = Feign.builder()//
-                .invocationHandlerFactory(
-                        new ValidationInvocationHandlerFactoryDecorator(new InvocationHandlerFactory.Default(),
-                                validator)).decoder(new GsonDecoder()).target(GitHub.class, "https://api.github.com");
+    GitHub github = ExtendedFeign.builder(validator)//
+            .decoder(new GsonDecoder()).target(GitHub.class, "https://api.github.com");
 
-        // Fetch and print a list of the contributors to this library.
-        try {
-            List<Contributor> contributors = github.contributors("OpenFeign", "feign");
-            for (Contributor contributor : contributors) {
-                System.out.println(contributor.login + " (" + contributor.contributions + ")");
-            }
-        } catch (ConstraintViolationException ex) {
-            ex.getConstraintViolations().forEach(System.out::println);
+    // Fetch and print a list of the contributors to this library.
+    try {
+        List<Contributor> contributors = github.contributors("OpenFeign", "feign");
+        for (Contributor contributor : contributors) {
+            System.out.println(contributor.login + " (" + contributor.contributions + ")");
         }
-
+    } catch (ConstraintViolationException ex) {
+        ex.getConstraintViolations().forEach(System.out::println);
     }
+
+}
 
 ```

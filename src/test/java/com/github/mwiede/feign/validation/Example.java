@@ -39,10 +39,8 @@ public class Example {
 
         Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
-        GitHub github = Feign.builder()//
-                .invocationHandlerFactory(
-                        new ValidationInvocationHandlerFactoryDecorator(new InvocationHandlerFactory.Default(),
-                                validator)).decoder(new GsonDecoder()).target(GitHub.class, "https://api.github.com");
+        GitHub github = ExtendedFeign.builder(validator)//
+                .decoder(new GsonDecoder()).target(GitHub.class, "https://api.github.com");
 
         // Fetch and print a list of the contributors to this library.
         try {
